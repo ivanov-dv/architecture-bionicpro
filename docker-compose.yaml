@@ -12,7 +12,7 @@ services:
     ports:
       - "5433:5432"
   keycloak:
-    image: quay.io/keycloak/keycloak:21.1
+    build: ./keycloak
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
@@ -29,14 +29,39 @@ services:
       - "8080:8080"
     depends_on:
       - keycloak_db
+      - openldap
+  openldap:
+    image: osixia/openldap:1.5.0
+    command: --copy-service
+    environment:
+      LDAP_DOMAIN: example.com
+      LDAP_ADMIN_PASSWORD: admin
+    volumes:
+      - ./ldap/config.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/config.ldif
+  redis:
+    image: redis:7-alpine
+  bionicpro-auth:
+    build:
+      context: ./bionicpro-auth
+      dockerfile: Dockerfile
+    environment:
+      KC_ISSUER_INTERNAL: http://keycloak:8080/realms/reports-realm
+      KC_ISSUER_PUBLIC: http://localhost:8080/realms/reports-realm
+      KC_CLIENT_ID: reports-frontend
+      KC_CLIENT_SECRET: b4d78a98a5cc476352f20e9f4ff223724f7f0a532a786df1
+      REDIRECT_URL: http://localhost:3000/auth/callback
+      APP_URL: http://localhost:3000/
+      REDIS_ADDR: redis:6379
+      SESSION_TTL: 30m
+      SESSION_ENC_KEY: JTB1mWVJy5si7stZbtfumlhr/5Vi2xT5jAmBL0fts90=
+    depends_on:
+      - keycloak
+      - redis
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
-    environment:
-      REACT_APP_API_URL: http://localhost:8000
-      REACT_APP_KEYCLOAK_URL: http://localhost:8080
-      REACT_APP_KEYCLOAK_REALM: reports-realm
-      REACT_APP_KEYCLOAK_CLIENT_ID: reports-frontend
+    depends_on:
+      - bionicpro-auth

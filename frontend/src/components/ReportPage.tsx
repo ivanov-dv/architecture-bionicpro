@@ -1,28 +1,27 @@
 import React, { useState } from 'react';
-import { useKeycloak } from '@react-keycloak/web';
+
+// Токенов во фронтенде нет: сессию держит bionicpro-auth, браузер носит
+// только HttpOnly cookie, поэтому запрос идёт с credentials: 'include'.
+const API = process.env.REACT_APP_API_URL || '';
 
 const ReportPage: React.FC = () => {
-  const { keycloak, initialized } = useKeycloak();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const downloadReport = async () => {
-    if (!keycloak?.token) {
-      setError('Not authenticated');
-      return;
-    }
-
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/reports`, {
-        headers: {
-          'Authorization': `Bearer ${keycloak.token}`
-        }
-      });
+      const response = await fetch(`${API}/reports`, { credentials: 'include' });
+      if (response.status === 401) {
+        setError('Not authenticated');
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(`Request failed: ${response.status}`);
+      }
 
-      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -30,28 +29,18 @@ const ReportPage: React.FC = () => {
     }
   };
 
-  if (!initialized) {
-    return <div>Loading...</div>;
-  }
-
-  if (!keycloak.authenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
-        <button
-          onClick={() => keycloak.login()}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Login
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
       <div className="p-8 bg-white rounded-lg shadow-md">
         <h1 className="text-2xl font-bold mb-6">Usage Reports</h1>
-        
+
+        <a
+          href={`${API}/auth/login`}
+          className="inline-block mr-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Login
+        </a>
+
         <button
           onClick={downloadReport}
           disabled={loading}
