@@ -82,7 +82,7 @@ func main() {
 	mux.HandleFunc("GET /auth/login", a.login)
 	mux.HandleFunc("GET /auth/callback", a.callback)
 	mux.HandleFunc("POST /auth/logout", a.logout)
-	mux.Handle("GET /reports", a.withSession(a.reports))
+	mux.Handle("GET /auth/verify", a.withSession(a.verify))
 	log.Println("bionicpro-auth listening on :8000")
 	log.Fatal(http.ListenAndServe(":8000", mux))
 }
@@ -199,9 +199,9 @@ func (a *app) withSession(next func(http.ResponseWriter, *http.Request, *Session
 	})
 }
 
-func (a *app) reports(w http.ResponseWriter, r *http.Request, s *Session) {
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"report": "usage report"})
+func (a *app) verify(w http.ResponseWriter, r *http.Request, s *Session) {
+	w.Header().Set("X-Access-Token", s.AccessToken)
+	w.WriteHeader(200)
 }
 
 func (a *app) logout(w http.ResponseWriter, r *http.Request) {
