@@ -34,7 +34,8 @@ const ReportPage: React.FC = () => {
         const body = await response.json().catch(() => null);
         throw new Error(body?.detail || `Request failed: ${response.status}`);
       }
-      setReport(await response.json());
+      const { url } = await response.json();
+      setReport(await (await fetch(url)).json());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {

@@ -8,4 +8,5 @@ dependencies = [
     "uvicorn>=0.30",
     "clickhouse-connect>=0.8",
     "pyjwt[crypto]>=2.9",
+    "boto3>=1.35",
 ]
