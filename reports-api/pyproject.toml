@@ -1,0 +1,12 @@
+[project]
+name = "reports-api"
+version = "0.1.0"
+description = "Отчёт о работе протеза из витрины ClickHouse"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "clickhouse-connect>=0.8",
+    "pyjwt[crypto]>=2.9",
+    "boto3>=1.35",
+]

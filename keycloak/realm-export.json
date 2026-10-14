@@ -1,6 +1,28 @@
 {
     "realm": "reports-realm",
     "enabled": true,
+    "accessTokenLifespan": 120,
+    "ssoSessionIdleTimeout": 1800,
+    "authenticationFlows": [
+      {
+        "alias": "browser",
+        "providerId": "basic-flow",
+        "topLevel": true,
+        "authenticationExecutions": [
+          {"authenticator": "auth-cookie", "requirement": "ALTERNATIVE", "priority": 10, "autheticatorFlow": false},
+          {"authenticator": "identity-provider-redirector", "requirement": "ALTERNATIVE", "priority": 20, "autheticatorFlow": false},
+          {"flowAlias": "forms", "requirement": "ALTERNATIVE", "priority": 30, "autheticatorFlow": true}
+        ]
+      },
+      {
+        "alias": "forms",
+        "providerId": "basic-flow",
+        "authenticationExecutions": [
+          {"authenticator": "auth-username-password-form", "requirement": "REQUIRED", "priority": 10, "autheticatorFlow": false},
+          {"authenticator": "auth-otp-form", "requirement": "REQUIRED", "priority": 20, "autheticatorFlow": false}
+        ]
+      }
+    ],
     "roles": {
       "realm": [
         {
@@ -109,14 +131,30 @@
         "realmRoles": ["prothetic_user"]
       }
     ],
+    "identityProviders": [
+      {
+        "alias": "yandex",
+        "providerId": "yandex",
+        "config": {
+          "clientId": "YANDEX_CLIENT_ID",
+          "clientSecret": "YANDEX_CLIENT_SECRET"
+        }
+      }
+    ],
     "clients": [
       {
         "clientId": "reports-frontend",
         "enabled": true,
-        "publicClient": true,
+        "consentRequired": true,
+        "publicClient": false,
+        "clientAuthenticatorType": "client-secret",
+        "secret": "b4d78a98a5cc476352f20e9f4ff223724f7f0a532a786df1",
         "redirectUris": ["http://localhost:3000/*"],
         "webOrigins": ["http://localhost:3000"],
-        "directAccessGrantsEnabled": true
+        "directAccessGrantsEnabled": false,
+        "attributes": {
+          "pkce.code.challenge.method": "S256"
+        }
       },
       {
         "clientId": "reports-api",
@@ -125,5 +163,41 @@
         "secret": "oNwoLQdvJAvRcL89SydqCWCe5ry1jMgq", 
         "bearerOnly": true
       }
-    ]
+    ],
+    "components": {
+      "org.keycloak.storage.UserStorageProvider": [
+        {
+          "name": "ldap",
+          "providerId": "ldap",
+          "config": {
+            "connectionUrl": ["ldap://openldap:389"],
+            "bindDn": ["cn=admin,dc=example,dc=com"],
+            "bindCredential": ["admin"],
+            "usersDn": ["ou=People,dc=example,dc=com"],
+            "editMode": ["READ_ONLY"]
+          },
+          "subComponents": {
+            "org.keycloak.storage.ldap.mappers.LDAPStorageMapper": [
+              {
+                "name": "username",
+                "providerId": "user-attribute-ldap-mapper",
+                "config": {
+                  "ldap.attribute": ["uid"],
+                  "user.model.attribute": ["username"]
+                }
+              },
+              {
+                "name": "realm roles",
+                "providerId": "role-ldap-mapper",
+                "config": {
+                  "roles.dn": ["ou=Groups,dc=example,dc=com"],
+                  "mode": ["READ_ONLY"],
+                  "use.realm.roles.mapping": ["true"]
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
   }
