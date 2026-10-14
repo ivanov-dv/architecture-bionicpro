@@ -1,0 +1,22 @@
+{
+  "name": "crm",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "database.hostname": "postgres",
+    "database.port": "5432",
+    "database.user": "airflow",
+    "database.password": "airflow",
+    "database.dbname": "crm",
+    "plugin.name": "pgoutput",
+    "topic.prefix": "crm",
+    "table.include.list": "public.clients",
+    "transforms": "unwrap",
+    "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+    "transforms.unwrap.delete.tombstone.handling.mode": "rewrite",
+    "transforms.unwrap.add.fields": "ts_ms",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "false",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "false"
+  }
+}

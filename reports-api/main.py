@@ -34,15 +34,20 @@ def current_user(request: Request) -> str:
 @app.get("/reports")
 def report(user: str = Depends(current_user), from_: date | None = Query(None, alias="from"), to: date | None = None):
     ch = clickhouse()
-    if ch.query("SELECT count() FROM user_daily_report").first_row[0] == 0:
+    n, processed_to = ch.query("SELECT count(), max(day) FROM user_daily_report_cdc").first_row  # до какого дня загрузил Airflow
+    if n == 0:
         raise HTTPException(404, "no processed data yet")
-    processed_to = ch.query("SELECT max(day) FROM user_daily_report").first_row[0]  # последний день, обработанный Airflow
     to = min(to or processed_to, processed_to)
     from_ = from_ or to - timedelta(days=29)
     if from_ > to:
         raise HTTPException(404, f"data is processed up to {processed_to}")
-    # Ключ содержит processed_to: после нового прогона ETL ключ меняется, старые отчёты и кеш CDN не мешают.
-    key = f"{user}/{processed_to}/{from_}_{to}.json"
+    # Ключ содержит processed_to и две независимые версии: клиента из CRM и набора загруженных дней,
+    # поэтому изменение клиента, перезагрузка или удаление дня дают новый ключ, старые объекты и кеш CDN не мешают.
+    client_version, telemetry_version = ch.query(
+        "SELECT max(client_version), sipHash64(arraySort(groupArray((day, processed_at)))) FROM user_daily_report_cdc WHERE username = {u:String}",
+        parameters={"u": user},
+    ).first_row
+    key = f"{user}/{processed_to}/{client_version}-{telemetry_version}/{from_}_{to}.json"
     try:
         s3.head_object(Bucket=BUCKET, Key=key)
         return {"url": f"{CDN_URL}/{key}"}
@@ -51,7 +56,7 @@ def report(user: str = Depends(current_user), from_: date | None = Query(None, a
     rows = list(ch.query(
         """SELECT day, full_name, prosthesis_model, movements, round(toFloat64(avg_battery), 1) AS avg_battery,
                   min_battery, errors, active_hours
-           FROM user_daily_report FINAL
+           FROM user_daily_report_cdc
            WHERE username = {u:String} AND day BETWEEN {f:Date} AND {t:Date}
            ORDER BY day""",
         parameters={"u": user, "f": from_, "t": to},
